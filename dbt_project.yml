@@ -18,7 +18,7 @@ test-paths: ["tests"]
 seed-paths: ["seeds"]
 macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
-
+docs-paths: ["docs"]
 target-path: "target"  # directory which will store compiled SQL files
 clean-targets:         # directories to be removed by `dbt clean`
   - "target"
@@ -35,8 +35,40 @@ clean-targets:         # directories to be removed by `dbt clean`
 # continue to be built as views. These settings can be overridden in the individual model files
 # using the `{{ config(...) }}` macro.
 
+vars:
+
+  budget_date: '2016-06-01'
+
+  # The `platforms` variable is only accessible to resources in the my_dbt_project project
+  my_dbt_project:
+    platforms: ['web', 'mobile']
+
+  # The `app_ids` variable is only accessible to resources in the snowplow package
+  snowplow:
+    app_ids: ['marketing', 'app', 'landing-page']
+
 models:
   my_new_project:
     # Applies to all files under models/example/
-    example:
-      +materialized: table
+    staging:
+      materialized: view
+      +database: "{{ env_var('DBT_ENVIRONMENTS') }}_SILVER_DB"
+      google_sheets:
+        +schema: google_sheets
+      sql_server_dbo:
+        +schema: sql_server_dbo
+    marts:
+      materialized: table
+      +database: "{{ env_var('DBT_ENVIRONMENTS') }}_GOLD_DB"
+      core:
+        +schema: core
+      product:
+        +schema: mart_product
+        #+post-hook: "grant select on {{ this }} to role product"
+seeds:
+  +schema: seed_data
+  +database: "{{ env_var('DBT_ENVIRONMENTS') }}_BRONZE_DB"        
+snapshots:
+  +transient: false
+  +target_database: "{{ env_var('DBT_ENVIRONMENTS') }}_SILVER_DB"
+  +target_schema: snapshots        
